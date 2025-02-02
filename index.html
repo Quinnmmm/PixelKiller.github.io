@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Pixel Killer</title>
+  <style>
+    /* General Styles */
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #1a1a1a, #333);
+      color: #fff;
+    }
+    .center {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      min-height: 100vh;
+    }
+    button {
+      padding: 12px 24px;
+      margin: 10px;
+      font-size: 18px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.3s, transform 0.2s;
+    }
+    button:hover {
+      transform: scale(1.05);
+    }
+    #titleScreen, #customScreen, #upgradeOverlay {
+      background: rgba(0, 0, 0, 0.75);
+      border-radius: 12px;
+      padding: 40px;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.7);
+      z-index: 5;
+      position: relative;
+    }
+    button.primary {
+      background-color: #2196F3;
+      color: #fff;
+    }
+    button.secondary {
+      background-color: #FF5722;
+      color: #fff;
+    }
+    #gameCanvas {
+      background: linear-gradient(180deg, #000, #222);
+      border: 3px solid #444;
+      border-radius: 12px;
+      display: block;
+      margin: auto;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.9);
+    }
+    .hidden {
+      display: none;
+    }
+    /* Customization slider styles */
+    .slider-container {
+      margin: 15px 0;
+      text-align: left;
+      width: 250px;
+    }
+    .slider-container label {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 16px;
+    }
+    .slider-container input {
+      width: 100%;
+    }
+    #colorPreview {
+      width: 60px;
+      height: 60px;
+      border: 2px solid #fff;
+      border-radius: 8px;
+      margin: 10px auto;
+    }
+    /* Upgrade overlay styles */
+    #upgradeOverlay {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+  </style>
+</head>
+<body>
+  <!-- Title Screen -->
+  <div id="titleScreen" class="center">
+    <h1 style="font-size: 60px; margin-bottom: 20px;">Pixel Killer</h1>
+    <button id="startGameBtn" class="primary">Start Game</button>
+    <button id="customizeBtn" class="secondary">Customization</button>
+  </div>
+
+  <!-- Customization Screen -->
+  <div id="customScreen" class="center hidden">
+    <h2 style="font-size: 40px; margin-bottom: 20px;">Customize Your Player</h2>
+    <div class="slider-container">
+      <label for="redSlider">Red: <span id="redValue">0</span></label>
+      <input type="range" id="redSlider" min="0" max="255" value="0">
+    </div>
+    <div class="slider-container">
+      <label for="greenSlider">Green: <span id="greenValue">0</span></label>
+      <input type="range" id="greenSlider" min="0" max="255" value="0">
+    </div>
+    <div class="slider-container">
+      <label for="blueSlider">Blue: <span id="blueValue">255</span></label>
+      <input type="range" id="blueSlider" min="0" max="255" value="255">
+    </div>
+    <div class="slider-container">
+      <label>Preview:</label>
+      <div id="colorPreview" style="background-color: rgb(0,0,255);"></div>
+    </div>
+    <button id="saveCustomizationBtn" class="primary">Save & Back</button>
+  </div>
+
+  <!-- Upgrade Overlay (hidden by default) -->
+  <div id="upgradeOverlay" class="center hidden">
+    <h2 style="font-size: 40px; margin-bottom: 20px;">Upgrade Time!</h2>
+    <p>Choose one upgrade:</p>
+    <button id="upgradeSpeedBtn" class="primary">Increase Movement Speed</button>
+    <button id="upgradeHealthBtn" class="primary">Increase Health</button>
+    <button id="upgradeDamageBtn" class="primary">Increase Damage</button>
+  </div>
+
+  <!-- Game Screen -->
+  <div id="gameScreen" class="hidden center">
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+  </div>
+
+  <script>
+    /***** UI & Customization Logic *****/
+    const titleScreen = document.getElementById('titleScreen');
+    const customScreen = document.getElementById('customScreen');
+    const gameScreen = document.getElementById('gameScreen');
+    const upgradeOverlay = document.getElementById('upgradeOverlay');
+    const startGameBtn = document.getElementById('startGameBtn');
+    const customizeBtn = document.getElementById('customizeBtn');
+    const saveCustomizationBtn = document.getElementById('saveCustomizationBtn');
+    const upgradeSpeedBtn = document.getElementById('upgradeSpeedBtn');
+    const upgradeHealthBtn = document.getElementById('upgradeHealthBtn');
+    const upgradeDamageBtn = document.getElementById('upgradeDamageBtn');
+
+    // Customization elements
+    const redSlider = document.getElementById('redSlider');
+    const greenSlider = document.getElementById('greenSlider');
+    const blueSlider = document.getElementById('blueSlider');
+    const redValue = document.getElementById('redValue');
+    const greenValue = document.getElementById('greenValue');
+    const blueValue = document.getElementById('blueValue');
+    const colorPreview = document.getElementById('colorPreview');
+
+    let playerColor = 'rgb(0,0,255)';
+    function updatePreview() {
+      const r = redSlider.value, g = greenSlider.value, b = blueSlider.value;
+      redValue.textContent = r; greenValue.textContent = g; blueValue.textContent = b;
+      playerColor = `rgb(${r},${g},${b})`;
+      colorPreview.style.backgroundColor = playerColor;
+    }
+    redSlider.addEventListener('input', updatePreview);
+    greenSlider.addEventListener('input', updatePreview);
+    blueSlider.addEventListener('input', updatePreview);
+
+    startGameBtn.addEventListener('click', () => {
+      titleScreen.classList.add('hidden');
+      gameScreen.classList.remove('hidden');
+      initGame();
+    });
+    customizeBtn.addEventListener('click', () => {
+      titleScreen.classList.add('hidden');
+      customScreen.classList.remove('hidden');
+    });
+    saveCustomizationBtn.addEventListener('click', () => {
+      customScreen.classList.add('hidden');
+      titleScreen.classList.remove('hidden');
+    });
+
+    upgradeSpeedBtn.addEventListener('click', () => {
+      player.speed += 0.5;
+      hideUpgradeOverlay();
+    });
+    upgradeHealthBtn.addEventListener('click', () => {
+      player.maxHealth += 1;
+      player.health = player.maxHealth;
+      hideUpgradeOverlay();
+    });
+    upgradeDamageBtn.addEventListener('click', () => {
+      player.damage += 1;
+      hideUpgradeOverlay();
+    });
+    function hideUpgradeOverlay() {
+      upgradeOverlay.classList.add('hidden');
+      upgradePending = false;
+      spawnWave(wave);
+      gameLoop();
+    }
+
+    /***** Game Logic *****/
+    let canvas, ctx;
+    let player, bullets, enemyBullets, enemies, keys;
+    let animationFrameId;
+    let wave = 1;
+    let score = 0;
+    let gameOver = false;
+    let upgradePending = false;
+
+    function initGame() {
+      canvas = document.getElementById('gameCanvas');
+      ctx = canvas.getContext('2d');
+      // Initialize player with additional properties.
+      player = {
+        x: canvas.width / 2 - 15,
+        y: canvas.height / 2 - 15,
+        width: 30,
+        height: 30,
+        speed: 3,
+        color: playerColor,
+        health: 3,
+        maxHealth: 3,
+        damage: 1
+      };
+      bullets = [];
+      enemyBullets = [];
+      enemies = [];
+      keys = {};
+      window.addEventListener('keydown', keyDownHandler);
+      window.addEventListener('keyup', keyUpHandler);
+      canvas.addEventListener('mousedown', canvasMouseDownHandler);
+      wave = 1;
+      spawnWave(wave);
+      gameLoop();
+    }
+    function keyDownHandler(e) { keys[e.code] = true; }
+    function keyUpHandler(e) { keys[e.code] = false; }
+    function canvasMouseDownHandler(e) {
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      const playerCenterX = player.x + player.width / 2;
+      const playerCenterY = player.y + player.height / 2;
+      const dx = mouseX - playerCenterX, dy = mouseY - playerCenterY;
+      const distance = Math.hypot(dx, dy);
+      const normX = dx / distance, normY = dy / distance;
+      bullets.push({
+        x: playerCenterX,
+        y: playerCenterY,
+        radius: 6,
+        speed: 8,
+        dx: normX,
+        dy: normY,
+        color: 'red'
+      });
+    }
+
+    // ----------------- Enemy Spawning & Types -----------------
+    function spawnWave(currentWave) {
+      enemies = [];
+      // Spawn chasers every wave.
+      let numChasers = 5 + currentWave;
+      for (let i = 0; i < numChasers; i++) {
+        spawnEnemy('chaser');
+      }
+      // Spawn shooters from wave 2.
+      if (currentWave >= 2) {
+        let numShooters = Math.floor(currentWave / 2);
+        for (let i = 0; i < numShooters; i++) {
+          spawnEnemy('shooter');
+        }
+      }
+      // Spawn tanks from wave 3.
+      if (currentWave >= 3) {
+        let numTanks = Math.floor(currentWave / 3);
+        for (let i = 0; i < numTanks; i++) {
+          spawnEnemy('tank');
+        }
+      }
+      // Spawn snapers from wave 4.
+      if (currentWave >= 4) {
+        let numSnapers = Math.floor(currentWave / 4);
+        for (let i = 0; i < numSnapers; i++) {
+          spawnEnemy('snaper');
+        }
+      }
+      console.log("Wave", currentWave, "spawned with", enemies.length, "enemies.");
+    }
+    function spawnEnemy(type) {
+      // First determine enemy dimensions based on type.
+      let enemyWidth, enemyHeight, enemySpeed, enemyHealth, enemyColor, shootTimer;
+      if (type === 'chaser') {
+        enemyWidth = 25; enemyHeight = 25; enemySpeed = 1.5; enemyHealth = 1; enemyColor = 'red';
+      } else if (type === 'shooter') {
+        enemyWidth = 25; enemyHeight = 25; enemySpeed = 0; enemyHealth = 1; enemyColor = 'orange'; shootTimer = 100;
+      } else if (type === 'tank') {
+        enemyWidth = 40; enemyHeight = 40; enemySpeed = 0.5; enemyHealth = 3; enemyColor = 'green';
+      } else if (type === 'snaper') {
+        enemyWidth = 20; enemyHeight = 20; enemySpeed = 0; enemyHealth = 1; enemyColor = 'purple'; shootTimer = 150;
+      }
+      // Choose a random edge and spawn the enemy fully onscreen.
+      let pos = { x: 0, y: 0 };
+      const edge = Math.floor(Math.random() * 4);
+      if (edge === 0) { // top
+        pos.x = Math.random() * (canvas.width - enemyWidth);
+        pos.y = 0;
+      } else if (edge === 1) { // right
+        pos.x = canvas.width - enemyWidth;
+        pos.y = Math.random() * (canvas.height - enemyHeight);
+      } else if (edge === 2) { // bottom
+        pos.x = Math.random() * (canvas.width - enemyWidth);
+        pos.y = canvas.height - enemyHeight;
+      } else { // left
+        pos.x = 0;
+        pos.y = Math.random() * (canvas.height - enemyHeight);
+      }
+      let enemy = { type, x: pos.x, y: pos.y };
+      enemy.width = enemyWidth;
+      enemy.height = enemyHeight;
+      enemy.speed = enemySpeed;
+      enemy.health = enemyHealth;
+      enemy.maxHealth = enemyHealth;
+      enemy.color = enemyColor;
+      if (shootTimer) { enemy.shootTimer = shootTimer; }
+      enemies.push(enemy);
+    }
+
+    // ----------------- Collision Helpers -----------------
+    function rectsCollide(a, b) {
+      return (a.x < b.x + b.width &&
+              a.x + a.width > b.x &&
+              a.y < b.y + b.height &&
+              a.y + a.height > b.y);
+    }
+    function circleRectCollide(circle, rect) {
+      let closestX = Math.max(rect.x, Math.min(circle.x, rect.x + rect.width));
+      let closestY = Math.max(rect.y, Math.min(circle.y, rect.y + rect.height));
+      let dx = circle.x - closestX, dy = circle.y - closestY;
+      return (dx * dx + dy * dy) < (circle.radius * circle.radius);
+    }
+
+    // ----------------- Game Update -----------------
+    function update() {
+      if (gameOver || upgradePending) return;
+      // Update player color in case customization changed.
+      player.color = playerColor;
+      // Clamp player movement to the canvas (no wrap-around).
+      if (keys['KeyW']) player.y -= player.speed;
+      if (keys['KeyS']) player.y += player.speed;
+      if (keys['KeyA']) player.x -= player.speed;
+      if (keys['KeyD']) player.x += player.speed;
+      if (player.x < 0) player.x = 0;
+      if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
+      if (player.y < 0) player.y = 0;
+      if (player.y + player.height > canvas.height) player.y = canvas.height - player.height;
+
+      // Update bullets (reverse loop).
+      for (let i = bullets.length - 1; i >= 0; i--) {
+        let b = bullets[i];
+        b.x += b.dx * b.speed;
+        b.y += b.dy * b.speed;
+        if (b.x < 0 || b.x > canvas.width || b.y < 0 || b.y > canvas.height) {
+          bullets.splice(i, 1);
+        }
+      }
+      // Update enemy bullets.
+      for (let i = enemyBullets.length - 1; i >= 0; i--) {
+        let eb = enemyBullets[i];
+        eb.x += eb.dx * eb.speed;
+        eb.y += eb.dy * eb.speed;
+        if (circleRectCollide(eb, player)) {
+          player.health--;
+          enemyBullets.splice(i, 1);
+          continue;
+        }
+        if (eb.x < 0 || eb.x > canvas.width || eb.y < 0 || eb.y > canvas.height) {
+          enemyBullets.splice(i, 1);
+        }
+      }
+      // Update enemies (using a reverse loop).
+      for (let i = enemies.length - 1; i >= 0; i--) {
+        let enemy = enemies[i];
+        if (enemy.type === 'chaser' || enemy.type === 'tank') {
+          let dx = (player.x + player.width/2) - (enemy.x + enemy.width/2);
+          let dy = (player.y + player.height/2) - (enemy.y + enemy.height/2);
+          let dist = Math.hypot(dx, dy);
+          if (dist !== 0) {
+            enemy.x += (dx / dist) * enemy.speed;
+            enemy.y += (dy / dist) * enemy.speed;
+          }
+        } else if (enemy.type === 'shooter') {
+          enemy.shootTimer--;
+          if (enemy.shootTimer <= 0) {
+            shootEnemyBullet(enemy);
+            enemy.shootTimer = 100;
+          }
+        } else if (enemy.type === 'snaper') {
+          let dx = (player.x + player.width/2) - (enemy.x + enemy.width/2);
+          let dy = (player.y + player.height/2) - (enemy.y + enemy.height/2);
+          let dist = Math.hypot(dx, dy);
+          if (dist < 200) {
+            enemy.x -= (dx / dist) * 1;
+            enemy.y -= (dy / dist) * 1;
+          }
+          enemy.shootTimer--;
+          if (enemy.shootTimer <= 0) {
+            shootEnemyBullet(enemy);
+            enemy.shootTimer = 150;
+          }
+        }
+        // Check collision with player.
+        if (rectsCollide(enemy, player)) {
+          player.health--;
+          enemies.splice(i, 1);
+          score += 10;
+          continue;
+        }
+        // Check collision with player bullets.
+        for (let j = bullets.length - 1; j >= 0; j--) {
+          let bullet = bullets[j];
+          if (circleRectCollide(bullet, enemy)) {
+            enemy.health -= player.damage;
+            bullets.splice(j, 1);
+            if (enemy.health <= 0) {
+              enemies.splice(i, 1);
+              score += 10;
+            }
+            break;
+          }
+        }
+      }
+
+      // If no enemies remain, start the next wave.
+      if (enemies.length === 0 && !upgradePending) {
+        if (wave % 5 === 0) {
+          upgradePending = true;
+          upgradeOverlay.classList.remove('hidden');
+          return;
+        }
+        wave++;
+        console.log("Starting wave", wave);
+        spawnWave(wave);
+      }
+      if (player.health <= 0) {
+        gameOver = true;
+      }
+    }
+
+    function shootEnemyBullet(enemy) {
+      let enemyCenterX = enemy.x + enemy.width/2;
+      let enemyCenterY = enemy.y + enemy.height/2;
+      let dx = (player.x + player.width/2) - enemyCenterX;
+      let dy = (player.y + player.height/2) - enemyCenterY;
+      let distance = Math.hypot(dx, dy);
+      let normX = dx / distance, normY = dy / distance;
+      enemyBullets.push({
+        x: enemyCenterX,
+        y: enemyCenterY,
+        dx: normX,
+        dy: normY,
+        speed: 4,
+        radius: 5,
+        color: 'white'
+      });
+    }
+
+    // ----------------- Drawing -----------------
+    function draw() {
+      let gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      gradient.addColorStop(0, "#000");
+      gradient.addColorStop(1, "#222");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // Draw player with gradient and soft glow.
+      const radius = 8;
+      let playerGradient = ctx.createLinearGradient(player.x, player.y, player.x + player.width, player.y + player.height);
+      playerGradient.addColorStop(0, player.color);
+      playerGradient.addColorStop(1, "#fff");
+      ctx.save();
+      ctx.shadowColor = player.color;
+      ctx.shadowBlur = 15;
+      ctx.fillStyle = playerGradient;
+      roundRect(ctx, player.x, player.y, player.width, player.height, radius);
+      ctx.fill();
+      ctx.restore();
+
+      // Draw bullets.
+      bullets.forEach(bullet => {
+        let grd = ctx.createRadialGradient(bullet.x, bullet.y, bullet.radius * 0.2, bullet.x, bullet.y, bullet.radius);
+        grd.addColorStop(0, "#fff");
+        grd.addColorStop(1, bullet.color);
+        ctx.beginPath();
+        ctx.arc(bullet.x, bullet.y, bullet.radius, 0, Math.PI * 2);
+        ctx.fillStyle = grd;
+        ctx.fill();
+      });
+      // Draw enemy bullets.
+      enemyBullets.forEach(eb => {
+        ctx.beginPath();
+        ctx.arc(eb.x, eb.y, eb.radius, 0, Math.PI * 2);
+        ctx.fillStyle = eb.color;
+        ctx.fill();
+      });
+      // Draw enemies and their health bars.
+      enemies.forEach(enemy => {
+        ctx.fillStyle = enemy.color;
+        roundRect(ctx, enemy.x, enemy.y, enemy.width, enemy.height, 4);
+        ctx.fill();
+        let barWidth = enemy.width, barHeight = 4;
+        let healthRatio = enemy.health / enemy.maxHealth;
+        ctx.fillStyle = "red";
+        ctx.fillRect(enemy.x, enemy.y - 10, barWidth, barHeight);
+        ctx.fillStyle = "green";
+        ctx.fillRect(enemy.x, enemy.y - 10, barWidth * healthRatio, barHeight);
+      });
+      // Draw HUD.
+      ctx.font = "20px Arial";
+      ctx.fillStyle = "#fff";
+      ctx.fillText("Wave: " + wave, 10, 25);
+      ctx.fillText("Score: " + score, canvas.width / 2 - 40, 25);
+      ctx.fillText("Health: " + player.health, 10, 50);
+      if (gameOver) {
+        ctx.fillStyle = "rgba(0,0,0,0.7)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.font = "60px Arial";
+        ctx.fillStyle = "red";
+        ctx.textAlign = "center";
+        ctx.fillText("GAME OVER", canvas.width / 2, canvas.height / 2);
+        ctx.font = "30px Arial";
+        ctx.fillStyle = "white";
+        ctx.fillText("Refresh to Play Again", canvas.width / 2, canvas.height / 2 + 50);
+      }
+    }
+    function roundRect(ctx, x, y, width, height, radius) {
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + width - radius, y);
+      ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+      ctx.lineTo(x + width, y + height - radius);
+      ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+      ctx.lineTo(x + radius, y + height);
+      ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+    }
+
+    // ----------------- Main Game Loop -----------------
+    function gameLoop() {
+      update();
+      draw();
+      if (!gameOver && !upgradePending) {
+        animationFrameId = requestAnimationFrame(gameLoop);
+      }
+    }
+  </script>
+</body>
+</html>
+

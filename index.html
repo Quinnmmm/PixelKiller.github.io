@@ -182,7 +182,7 @@
       titleScreen.classList.remove('hidden');
     });
 
-    // Upgrade overlay buttons – after an upgrade is chosen, wave is incremented so you move to the next wave.
+    // Upgrade overlay buttons – after an upgrade is selected, wave is incremented.
     upgradeSpeedBtn.addEventListener('click', () => {
       player.speed += 0.5;
       finishUpgrade();
@@ -212,14 +212,14 @@
     let score = 0;
     let gameOver = false;
     let upgradePending = false;
-    // For auto-fire power-up
+    // For auto-fire power-up.
     let lastBulletDirection = { dx: 0, dy: -1 };
     let autoFireCooldown = 0;
 
     function initGame() {
       canvas = document.getElementById('gameCanvas');
       ctx = canvas.getContext('2d');
-      // Initialize player (also include timers for power-ups)
+      // Initialize player with additional power-up timers.
       player = {
         x: canvas.width / 2 - 15,
         y: canvas.height / 2 - 15,
@@ -232,7 +232,7 @@
         damage: 1,
         multiShotTimer: 0,
         autoFireTimer: 0,
-        shieldTimer: 0  // Shield duration timer
+        shieldTimer: 0
       };
       bullets = [];
       enemyBullets = [];
@@ -243,7 +243,6 @@
       window.addEventListener('keyup', keyUpHandler);
       canvas.addEventListener('mousedown', canvasMouseDownHandler);
       wave = 1;
-      // On wave 10, spawn boss instead of normal enemies.
       spawnWave(wave);
       gameLoop();
     }
@@ -258,9 +257,8 @@
       const dx = mouseX - playerCenterX, dy = mouseY - playerCenterY;
       const distance = Math.hypot(dx, dy);
       const normX = dx / distance, normY = dy / distance;
-      lastBulletDirection = { dx: normX, dy: normY };  // Update last aimed direction.
+      lastBulletDirection = { dx: normX, dy: normY };
       if (player.multiShotTimer > 0) {
-        // Fire three bullets in a spread.
         shootBullet(playerCenterX, playerCenterY, normX, normY);
         const angle = Math.atan2(normY, normX);
         const offset = 0.2;
@@ -283,13 +281,13 @@
     }
 
     // ----------------- Enemy Spawning & Types -----------------
+    // Updated: Enemies now spawn at a random position anywhere on the screen.
     function spawnWave(currentWave) {
       enemies = [];
-      // For wave 10, spawn a boss.
+      // On wave 10, spawn the boss.
       if (currentWave === 10) {
         spawnBoss();
       } else {
-        // Spawn normal enemies.
         let numChasers = 5 + currentWave;
         for (let i = 0; i < numChasers; i++) {
           spawnEnemy('chaser');
@@ -315,6 +313,7 @@
       }
       console.log("Wave", currentWave, "spawned with", enemies.length, "enemies.");
     }
+    // Updated spawnEnemy: Enemies now spawn anywhere within the visible canvas.
     function spawnEnemy(type) {
       let enemyWidth, enemyHeight, enemySpeed, enemyHealth, enemyColor, shootTimer;
       if (type === 'chaser') {
@@ -326,22 +325,10 @@
       } else if (type === 'snaper') {
         enemyWidth = 20; enemyHeight = 20; enemySpeed = 0; enemyHealth = 1; enemyColor = 'purple'; shootTimer = 150;
       }
-      // Spawn enemy fully onscreen along a random edge.
-      let pos = { x: 0, y: 0 };
-      const edge = Math.floor(Math.random() * 4);
-      if (edge === 0) {
-        pos.x = Math.random() * (canvas.width - enemyWidth);
-        pos.y = 0;
-      } else if (edge === 1) {
-        pos.x = canvas.width - enemyWidth;
-        pos.y = Math.random() * (canvas.height - enemyHeight);
-      } else if (edge === 2) {
-        pos.x = Math.random() * (canvas.width - enemyWidth);
-        pos.y = canvas.height - enemyHeight;
-      } else {
-        pos.x = 0;
-        pos.y = Math.random() * (canvas.height - enemyHeight);
-      }
+      let pos = {
+        x: Math.random() * (canvas.width - enemyWidth),
+        y: Math.random() * (canvas.height - enemyHeight)
+      };
       let enemy = { type, x: pos.x, y: pos.y };
       enemy.width = enemyWidth;
       enemy.height = enemyHeight;
@@ -352,7 +339,7 @@
       if (shootTimer) { enemy.shootTimer = shootTimer; }
       enemies.push(enemy);
     }
-    // Spawn boss for wave 10.
+    // Boss for wave 10.
     function spawnBoss() {
       let boss = {
         type: "boss",
@@ -365,19 +352,19 @@
         speed: 0.5,
         color: "purple",
         shootTimer: 80,
-        dx: 2  // horizontal movement speed
+        dx: 2
       };
       enemies.push(boss);
-      // Optionally, spawn a few minions around the boss.
+      // Optionally spawn some minions.
       for (let i = 0; i < 3; i++) {
         spawnEnemy('chaser');
       }
     }
 
     // ----------------- Power-up Drops -----------------
-    // Drop chance is 10%. If an enemy is killed, randomly choose one of 4 power-ups.
+    // Drop chance is now 10%.
     function maybeDropPowerUp(x, y) {
-      if (Math.random() < 0.1) {  // 10% chance overall.
+      if (Math.random() < 0.1) {
         const types = ["multiShot", "autoFire", "shield", "heal"];
         let type = types[Math.floor(Math.random() * types.length)];
         powerUps.push({
@@ -409,9 +396,7 @@
     // ----------------- Game Update -----------------
     function update() {
       if (gameOver || upgradePending) return;
-      // Update player color.
       player.color = playerColor;
-      // Clamp player movement.
       if (keys['KeyW']) player.y -= player.speed;
       if (keys['KeyS']) player.y += player.speed;
       if (keys['KeyA']) player.x -= player.speed;
@@ -420,8 +405,6 @@
       if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
       if (player.y < 0) player.y = 0;
       if (player.y + player.height > canvas.height) player.y = canvas.height - player.height;
-
-      // Update bullets.
       for (let i = bullets.length - 1; i >= 0; i--) {
         let b = bullets[i];
         b.x += b.dx * b.speed;
@@ -430,12 +413,10 @@
           bullets.splice(i, 1);
         }
       }
-      // Update enemy bullets.
       for (let i = enemyBullets.length - 1; i >= 0; i--) {
         let eb = enemyBullets[i];
         eb.x += eb.dx * eb.speed;
         eb.y += eb.dy * eb.speed;
-        // If shield is active, ignore damage.
         if (player.shieldTimer <= 0 && circleRectCollide(eb, player)) {
           player.health--;
           enemyBullets.splice(i, 1);
@@ -445,16 +426,13 @@
           enemyBullets.splice(i, 1);
         }
       }
-      // Update enemies.
       for (let i = enemies.length - 1; i >= 0; i--) {
         let enemy = enemies[i];
         if (enemy.type === 'boss') {
-          // Boss movement: move horizontally; bounce off canvas edges.
           enemy.x += enemy.dx;
           if (enemy.x <= 0 || enemy.x + enemy.width >= canvas.width) {
             enemy.dx = -enemy.dx;
           }
-          // Boss fires a spread of 8 bullets in all directions.
           enemy.shootTimer--;
           if (enemy.shootTimer <= 0) {
             for (let angle = 0; angle < 2 * Math.PI; angle += Math.PI / 4) {
@@ -499,23 +477,20 @@
             enemy.shootTimer = 150;
           }
         }
-        // Check collision with player.
         if (rectsCollide(enemy, player)) {
-          if (player.shieldTimer <= 0) {  // If no shield active, take damage.
+          if (player.shieldTimer <= 0) { 
             player.health--;
           }
           enemies.splice(i, 1);
           score += 10;
           continue;
         }
-        // Check collision with bullets.
         for (let j = bullets.length - 1; j >= 0; j--) {
           let bullet = bullets[j];
           if (circleRectCollide(bullet, enemy)) {
             enemy.health -= player.damage;
             bullets.splice(j, 1);
             if (enemy.health <= 0) {
-              // Drop a power-up at enemy center.
               maybeDropPowerUp(enemy.x + enemy.width/2, enemy.y + enemy.height/2);
               enemies.splice(i, 1);
               score += 10;
@@ -524,7 +499,6 @@
           }
         }
       }
-      // Update power-ups.
       for (let i = powerUps.length - 1; i >= 0; i--) {
         let pu = powerUps[i];
         pu.y += pu.speed;
@@ -534,19 +508,18 @@
         }
         if (rectsCollide(pu, player)) {
           if (pu.type === "multiShot") {
-            player.multiShotTimer = 600; // 10 seconds
+            player.multiShotTimer = 600;
           } else if (pu.type === "autoFire") {
             player.autoFireTimer = 600;
             autoFireCooldown = 0;
           } else if (pu.type === "shield") {
-            player.shieldTimer = 300; // 5 seconds
+            player.shieldTimer = 300;
           } else if (pu.type === "heal") {
             player.health = Math.min(player.health + 1, player.maxHealth);
           }
           powerUps.splice(i, 1);
         }
       }
-      // Handle auto fire.
       if (player.autoFireTimer > 0) {
         player.autoFireTimer--;
         autoFireCooldown--;
@@ -557,13 +530,10 @@
           autoFireCooldown = 20;
         }
       }
-      // Decrease multi-shot and shield timers.
       if (player.multiShotTimer > 0) player.multiShotTimer--;
       if (player.shieldTimer > 0) player.shieldTimer--;
-
-      // If no enemies remain, start next wave.
       if (enemies.length === 0 && !upgradePending) {
-        if (wave % 5 === 0 && wave !== 10) {  // For non-boss waves
+        if (wave % 5 === 0 && wave !== 10) {
           upgradePending = true;
           upgradeOverlay.classList.remove('hidden');
           return;
@@ -603,7 +573,6 @@
       gradient.addColorStop(1, "#222");
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      // Draw player with gradient and soft glow.
       const radius = 8;
       let playerGradient = ctx.createLinearGradient(player.x, player.y, player.x + player.width, player.y + player.height);
       playerGradient.addColorStop(0, player.color);
@@ -615,7 +584,6 @@
       roundRect(ctx, player.x, player.y, player.width, player.height, radius);
       ctx.fill();
       ctx.restore();
-      // If shield is active, draw an outline.
       if (player.shieldTimer > 0) {
         ctx.strokeStyle = "cyan";
         ctx.lineWidth = 3;
@@ -623,7 +591,6 @@
         ctx.arc(player.x + player.width/2, player.y + player.height/2, player.width, 0, Math.PI*2);
         ctx.stroke();
       }
-      // Draw bullets.
       bullets.forEach(bullet => {
         let grd = ctx.createRadialGradient(bullet.x, bullet.y, bullet.radius * 0.2, bullet.x, bullet.y, bullet.radius);
         grd.addColorStop(0, "#fff");
@@ -633,14 +600,12 @@
         ctx.fillStyle = grd;
         ctx.fill();
       });
-      // Draw enemy bullets.
       enemyBullets.forEach(eb => {
         ctx.beginPath();
         ctx.arc(eb.x, eb.y, eb.radius, 0, Math.PI * 2);
         ctx.fillStyle = eb.color;
         ctx.fill();
       });
-      // Draw enemies and their health bars.
       enemies.forEach(enemy => {
         ctx.fillStyle = enemy.color;
         roundRect(ctx, enemy.x, enemy.y, enemy.width, enemy.height, 4);
@@ -652,7 +617,6 @@
         ctx.fillStyle = "green";
         ctx.fillRect(enemy.x, enemy.y - 10, barWidth * healthRatio, barHeight);
       });
-      // Draw power-ups.
       powerUps.forEach(pu => {
         ctx.fillStyle = pu.color;
         ctx.beginPath();
@@ -663,7 +627,6 @@
         ctx.textAlign = "center";
         ctx.fillText(pu.type === "multiShot" ? "MS" : pu.type === "autoFire" ? "AF" : pu.type === "shield" ? "SH" : "HL", pu.x + pu.width/2, pu.y + pu.height/2 + 4);
       });
-      // Draw HUD.
       ctx.font = "20px Arial";
       ctx.fillStyle = "#fff";
       ctx.fillText("Wave: " + wave, 10, 25);
@@ -694,7 +657,6 @@
       ctx.quadraticCurveTo(x, y, x + radius, y);
       ctx.closePath();
     }
-
     // ----------------- Main Game Loop -----------------
     function gameLoop() {
       update();

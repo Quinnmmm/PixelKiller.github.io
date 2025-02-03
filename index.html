@@ -182,7 +182,7 @@
       titleScreen.classList.remove('hidden');
     });
 
-    // Upgrade overlay buttons – note that now we increment wave (so after upgrade, wave goes on)
+    // Upgrade overlay buttons – after an upgrade is chosen, wave is incremented so you move to the next wave.
     upgradeSpeedBtn.addEventListener('click', () => {
       player.speed += 0.5;
       finishUpgrade();
@@ -199,27 +199,27 @@
     function finishUpgrade() {
       upgradeOverlay.classList.add('hidden');
       upgradePending = false;
-      wave++;  // increment wave so that after upgrade you go to the next wave
+      wave++;  // Move to the next wave.
       spawnWave(wave);
       gameLoop();
     }
 
     /***** Game Logic *****/
     let canvas, ctx;
-    let player, bullets, enemyBullets, enemies, keys, powerUps;
+    let player, bullets, enemyBullets, enemies, powerUps, keys;
     let animationFrameId;
     let wave = 1;
     let score = 0;
     let gameOver = false;
     let upgradePending = false;
-    // For auto fire power-up: store the last fired direction and a cooldown timer.
+    // For auto-fire power-up
     let lastBulletDirection = { dx: 0, dy: -1 };
     let autoFireCooldown = 0;
 
     function initGame() {
       canvas = document.getElementById('gameCanvas');
       ctx = canvas.getContext('2d');
-      // Initialize player with additional properties and power-up timers.
+      // Initialize player (also include timers for power-ups)
       player = {
         x: canvas.width / 2 - 15,
         y: canvas.height / 2 - 15,
@@ -230,18 +230,20 @@
         health: 3,
         maxHealth: 3,
         damage: 1,
-        multiShotTimer: 0,  // frames remaining for multi-shot
-        autoFireTimer: 0    // frames remaining for auto fire
+        multiShotTimer: 0,
+        autoFireTimer: 0,
+        shieldTimer: 0  // Shield duration timer
       };
       bullets = [];
       enemyBullets = [];
       enemies = [];
-      powerUps = [];  // Array to store power-up items on the map.
+      powerUps = [];
       keys = {};
       window.addEventListener('keydown', keyDownHandler);
       window.addEventListener('keyup', keyUpHandler);
       canvas.addEventListener('mousedown', canvasMouseDownHandler);
       wave = 1;
+      // On wave 10, spawn boss instead of normal enemies.
       spawnWave(wave);
       gameLoop();
     }
@@ -256,12 +258,10 @@
       const dx = mouseX - playerCenterX, dy = mouseY - playerCenterY;
       const distance = Math.hypot(dx, dy);
       const normX = dx / distance, normY = dy / distance;
-      lastBulletDirection = { dx: normX, dy: normY };  // update last aimed direction
-      // If multi-shot is active, fire a spread.
+      lastBulletDirection = { dx: normX, dy: normY };  // Update last aimed direction.
       if (player.multiShotTimer > 0) {
-        // Fire three bullets: center, slight left, slight right.
+        // Fire three bullets in a spread.
         shootBullet(playerCenterX, playerCenterY, normX, normY);
-        // Calculate angle offsets (in radians)
         const angle = Math.atan2(normY, normX);
         const offset = 0.2;
         shootBullet(playerCenterX, playerCenterY, Math.cos(angle - offset), Math.sin(angle - offset));
@@ -285,36 +285,37 @@
     // ----------------- Enemy Spawning & Types -----------------
     function spawnWave(currentWave) {
       enemies = [];
-      // Spawn chasers every wave.
-      let numChasers = 5 + currentWave;
-      for (let i = 0; i < numChasers; i++) {
-        spawnEnemy('chaser');
-      }
-      // Spawn shooters from wave 2.
-      if (currentWave >= 2) {
-        let numShooters = Math.floor(currentWave / 2);
-        for (let i = 0; i < numShooters; i++) {
-          spawnEnemy('shooter');
+      // For wave 10, spawn a boss.
+      if (currentWave === 10) {
+        spawnBoss();
+      } else {
+        // Spawn normal enemies.
+        let numChasers = 5 + currentWave;
+        for (let i = 0; i < numChasers; i++) {
+          spawnEnemy('chaser');
         }
-      }
-      // Spawn tanks from wave 3.
-      if (currentWave >= 3) {
-        let numTanks = Math.floor(currentWave / 3);
-        for (let i = 0; i < numTanks; i++) {
-          spawnEnemy('tank');
+        if (currentWave >= 2) {
+          let numShooters = Math.floor(currentWave / 2);
+          for (let i = 0; i < numShooters; i++) {
+            spawnEnemy('shooter');
+          }
         }
-      }
-      // Spawn snapers from wave 4.
-      if (currentWave >= 4) {
-        let numSnapers = Math.floor(currentWave / 4);
-        for (let i = 0; i < numSnapers; i++) {
-          spawnEnemy('snaper');
+        if (currentWave >= 3) {
+          let numTanks = Math.floor(currentWave / 3);
+          for (let i = 0; i < numTanks; i++) {
+            spawnEnemy('tank');
+          }
+        }
+        if (currentWave >= 4) {
+          let numSnapers = Math.floor(currentWave / 4);
+          for (let i = 0; i < numSnapers; i++) {
+            spawnEnemy('snaper');
+          }
         }
       }
       console.log("Wave", currentWave, "spawned with", enemies.length, "enemies.");
     }
     function spawnEnemy(type) {
-      // Determine enemy properties based on type.
       let enemyWidth, enemyHeight, enemySpeed, enemyHealth, enemyColor, shootTimer;
       if (type === 'chaser') {
         enemyWidth = 25; enemyHeight = 25; enemySpeed = 1.5; enemyHealth = 1; enemyColor = 'red';
@@ -325,19 +326,19 @@
       } else if (type === 'snaper') {
         enemyWidth = 20; enemyHeight = 20; enemySpeed = 0; enemyHealth = 1; enemyColor = 'purple'; shootTimer = 150;
       }
-      // Choose a random edge ensuring the enemy is fully onscreen.
+      // Spawn enemy fully onscreen along a random edge.
       let pos = { x: 0, y: 0 };
       const edge = Math.floor(Math.random() * 4);
-      if (edge === 0) { // top
+      if (edge === 0) {
         pos.x = Math.random() * (canvas.width - enemyWidth);
         pos.y = 0;
-      } else if (edge === 1) { // right
+      } else if (edge === 1) {
         pos.x = canvas.width - enemyWidth;
         pos.y = Math.random() * (canvas.height - enemyHeight);
-      } else if (edge === 2) { // bottom
+      } else if (edge === 2) {
         pos.x = Math.random() * (canvas.width - enemyWidth);
         pos.y = canvas.height - enemyHeight;
-      } else { // left
+      } else {
         pos.x = 0;
         pos.y = Math.random() * (canvas.height - enemyHeight);
       }
@@ -351,22 +352,42 @@
       if (shootTimer) { enemy.shootTimer = shootTimer; }
       enemies.push(enemy);
     }
+    // Spawn boss for wave 10.
+    function spawnBoss() {
+      let boss = {
+        type: "boss",
+        x: canvas.width / 2 - 50,
+        y: 50,
+        width: 100,
+        height: 100,
+        health: 50,
+        maxHealth: 50,
+        speed: 0.5,
+        color: "purple",
+        shootTimer: 80,
+        dx: 2  // horizontal movement speed
+      };
+      enemies.push(boss);
+      // Optionally, spawn a few minions around the boss.
+      for (let i = 0; i < 3; i++) {
+        spawnEnemy('chaser');
+      }
+    }
 
     // ----------------- Power-up Drops -----------------
-    // When an enemy is killed, there is a chance to drop a power-up.
-    // Each power-up has a type ("multiShot" or "autoFire"), a position, and a small downward speed.
+    // Drop chance is 10%. If an enemy is killed, randomly choose one of 4 power-ups.
     function maybeDropPowerUp(x, y) {
-      if (Math.random() < 0.3) {  // 30% chance
-        // Randomly choose type.
-        let type = Math.random() < 0.5 ? "multiShot" : "autoFire";
+      if (Math.random() < 0.1) {  // 10% chance overall.
+        const types = ["multiShot", "autoFire", "shield", "heal"];
+        let type = types[Math.floor(Math.random() * types.length)];
         powerUps.push({
           type: type,
-          x: x,
-          y: y,
+          x: x - 10,
+          y: y - 10,
           width: 20,
           height: 20,
-          speed: 1,  // falling down slowly
-          color: type === "multiShot" ? "purple" : "yellow"
+          speed: 1,
+          color: type === "multiShot" ? "purple" : type === "autoFire" ? "yellow" : type === "shield" ? "cyan" : "lime"
         });
       }
     }
@@ -414,7 +435,8 @@
         let eb = enemyBullets[i];
         eb.x += eb.dx * eb.speed;
         eb.y += eb.dy * eb.speed;
-        if (circleRectCollide(eb, player)) {
+        // If shield is active, ignore damage.
+        if (player.shieldTimer <= 0 && circleRectCollide(eb, player)) {
           player.health--;
           enemyBullets.splice(i, 1);
           continue;
@@ -426,7 +448,30 @@
       // Update enemies.
       for (let i = enemies.length - 1; i >= 0; i--) {
         let enemy = enemies[i];
-        if (enemy.type === 'chaser' || enemy.type === 'tank') {
+        if (enemy.type === 'boss') {
+          // Boss movement: move horizontally; bounce off canvas edges.
+          enemy.x += enemy.dx;
+          if (enemy.x <= 0 || enemy.x + enemy.width >= canvas.width) {
+            enemy.dx = -enemy.dx;
+          }
+          // Boss fires a spread of 8 bullets in all directions.
+          enemy.shootTimer--;
+          if (enemy.shootTimer <= 0) {
+            for (let angle = 0; angle < 2 * Math.PI; angle += Math.PI / 4) {
+              enemyBullets.push({
+                x: enemy.x + enemy.width/2,
+                y: enemy.y + enemy.height/2,
+                dx: Math.cos(angle),
+                dy: Math.sin(angle),
+                speed: 5,
+                radius: 6,
+                color: 'white'
+              });
+            }
+            enemy.shootTimer = 80;
+          }
+        }
+        else if (enemy.type === 'chaser' || enemy.type === 'tank') {
           let dx = (player.x + player.width/2) - (enemy.x + enemy.width/2);
           let dy = (player.y + player.height/2) - (enemy.y + enemy.height/2);
           let dist = Math.hypot(dx, dy);
@@ -456,7 +501,9 @@
         }
         // Check collision with player.
         if (rectsCollide(enemy, player)) {
-          player.health--;
+          if (player.shieldTimer <= 0) {  // If no shield active, take damage.
+            player.health--;
+          }
           enemies.splice(i, 1);
           score += 10;
           continue;
@@ -468,7 +515,7 @@
             enemy.health -= player.damage;
             bullets.splice(j, 1);
             if (enemy.health <= 0) {
-              // Drop a power-up with some chance.
+              // Drop a power-up at enemy center.
               maybeDropPowerUp(enemy.x + enemy.width/2, enemy.y + enemy.height/2);
               enemies.splice(i, 1);
               score += 10;
@@ -480,56 +527,57 @@
       // Update power-ups.
       for (let i = powerUps.length - 1; i >= 0; i--) {
         let pu = powerUps[i];
-        pu.y += pu.speed;  // fall down slowly
-        // Remove if off-screen.
+        pu.y += pu.speed;
         if (pu.y > canvas.height) {
           powerUps.splice(i, 1);
           continue;
         }
-        // If player collects power-up.
         if (rectsCollide(pu, player)) {
           if (pu.type === "multiShot") {
-            player.multiShotTimer = 600;  // lasts 10 seconds (600 frames)
+            player.multiShotTimer = 600; // 10 seconds
           } else if (pu.type === "autoFire") {
             player.autoFireTimer = 600;
             autoFireCooldown = 0;
+          } else if (pu.type === "shield") {
+            player.shieldTimer = 300; // 5 seconds
+          } else if (pu.type === "heal") {
+            player.health = Math.min(player.health + 1, player.maxHealth);
           }
           powerUps.splice(i, 1);
         }
       }
-      // Handle auto fire power-up.
+      // Handle auto fire.
       if (player.autoFireTimer > 0) {
         player.autoFireTimer--;
         autoFireCooldown--;
         if (autoFireCooldown <= 0) {
-          // Fire a bullet automatically in the last aimed direction.
           const playerCenterX = player.x + player.width / 2;
           const playerCenterY = player.y + player.height / 2;
           shootBullet(playerCenterX, playerCenterY, lastBulletDirection.dx, lastBulletDirection.dy);
-          autoFireCooldown = 20; // fire every 20 frames
+          autoFireCooldown = 20;
         }
       }
-      // Decrease multi-shot timer if active.
-      if (player.multiShotTimer > 0) {
-        player.multiShotTimer--;
-      }
+      // Decrease multi-shot and shield timers.
+      if (player.multiShotTimer > 0) player.multiShotTimer--;
+      if (player.shieldTimer > 0) player.shieldTimer--;
 
       // If no enemies remain, start next wave.
       if (enemies.length === 0 && !upgradePending) {
-        if (wave % 5 === 0) {
+        if (wave % 5 === 0 && wave !== 10) {  // For non-boss waves
           upgradePending = true;
           upgradeOverlay.classList.remove('hidden');
           return;
         }
-        wave++;
-        console.log("Starting wave", wave);
-        spawnWave(wave);
+        if (wave !== 10) {
+          wave++;
+          console.log("Starting wave", wave);
+          spawnWave(wave);
+        }
       }
       if (player.health <= 0) {
         gameOver = true;
       }
     }
-
     function shootEnemyBullet(enemy) {
       let enemyCenterX = enemy.x + enemy.width/2;
       let enemyCenterY = enemy.y + enemy.height/2;
@@ -555,8 +603,7 @@
       gradient.addColorStop(1, "#222");
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      
-      // Draw player with gradient and glow.
+      // Draw player with gradient and soft glow.
       const radius = 8;
       let playerGradient = ctx.createLinearGradient(player.x, player.y, player.x + player.width, player.y + player.height);
       playerGradient.addColorStop(0, player.color);
@@ -568,7 +615,14 @@
       roundRect(ctx, player.x, player.y, player.width, player.height, radius);
       ctx.fill();
       ctx.restore();
-      
+      // If shield is active, draw an outline.
+      if (player.shieldTimer > 0) {
+        ctx.strokeStyle = "cyan";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(player.x + player.width/2, player.y + player.height/2, player.width, 0, Math.PI*2);
+        ctx.stroke();
+      }
       // Draw bullets.
       bullets.forEach(bullet => {
         let grd = ctx.createRadialGradient(bullet.x, bullet.y, bullet.radius * 0.2, bullet.x, bullet.y, bullet.radius);
@@ -607,7 +661,7 @@
         ctx.font = "12px Arial";
         ctx.fillStyle = "#000";
         ctx.textAlign = "center";
-        ctx.fillText(pu.type === "multiShot" ? "MS" : "AF", pu.x + pu.width/2, pu.y + pu.height/2 + 4);
+        ctx.fillText(pu.type === "multiShot" ? "MS" : pu.type === "autoFire" ? "AF" : pu.type === "shield" ? "SH" : "HL", pu.x + pu.width/2, pu.y + pu.height/2 + 4);
       });
       // Draw HUD.
       ctx.font = "20px Arial";
@@ -652,5 +706,3 @@
   </script>
 </body>
 </html>
-
-
